@@ -44,7 +44,12 @@ class SessionRunner:
             },
         )
 
-        actions, mode, mode_error = generate_actions_with_meta(request.prompt, request.width, request.height)
+        actions, mode, mode_error = generate_actions_with_meta(
+            request.prompt,
+            request.width,
+            request.height,
+            style_preset=request.style_preset or "dreamy_oil",
+        )
         await self._send(
             session_id,
             "policy_status",

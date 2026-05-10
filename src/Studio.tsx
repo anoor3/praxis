@@ -10,6 +10,27 @@ function renderAction(ctx: CanvasRenderingContext2D, action: Action) {
     return;
   }
 
+  if (action.action_type === 'gradient_rect') {
+    const x2 = action.direction === 'horizontal' ? action.x + action.w : action.x;
+    const y2 = action.direction === 'vertical' ? action.y + action.h : action.y;
+    const grad = ctx.createLinearGradient(action.x, action.y, x2, y2);
+    action.color_stops.forEach(([stop, color]) => grad.addColorStop(stop, color));
+    ctx.fillStyle = grad;
+    ctx.fillRect(action.x, action.y, action.w, action.h);
+    return;
+  }
+
+  if (action.action_type === 'fill_circle') {
+    ctx.save();
+    ctx.globalAlpha = action.opacity;
+    ctx.fillStyle = action.color;
+    ctx.beginPath();
+    ctx.arc(action.x, action.y, action.r, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+    return;
+  }
+
   if (action.points.length < 2) return;
 
   ctx.strokeStyle = action.color;
@@ -27,12 +48,25 @@ function renderAction(ctx: CanvasRenderingContext2D, action: Action) {
   ctx.globalAlpha = 1;
 }
 
-export function Studio({ prompt, runId }: { prompt: string; runId: number }) {
+const STROKE_POINTS_PER_FRAME = 1;
+
+export function Studio({
+  prompt,
+  runId,
+  stylePreset,
+}: {
+  prompt: string;
+  runId: number;
+  stylePreset: string;
+}) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const cursorRef = useRef<HTMLCanvasElement>(null);
   const socketRef = useRef<WebSocket | null>(null);
   const queueRef = useRef<Action[]>([]);
   const rafRef = useRef<number | null>(null);
-  const currentStrokeRef = useRef<{ action: Extract<Action, { action_type: 'draw_stroke' }>; index: number } | null>(null);
+  const currentStrokeRef = useRef<
+    { action: Extract<Action, { action_type: 'draw_stroke' }>; index: number } | null
+  >(null);
 
   const [feed, setFeed] = useState<string[]>(['Ready. Press “Start Painting”.']);
   const [policyStatus, setPolicyStatus] = useState<string>('');
@@ -56,6 +90,17 @@ export function Studio({ prompt, runId }: { prompt: string; runId: number }) {
     canvas.style.height = `${height}px`;
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     ctx.clearRect(0, 0, width, height);
+
+    const cursor = cursorRef.current;
+    if (cursor) {
+      cursor.width = width * dpr;
+      cursor.height = height * dpr;
+      cursor.style.width = `${width}px`;
+      cursor.style.height = `${height}px`;
+      const cctx = cursor.getContext('2d');
+      cctx?.setTransform(dpr, 0, 0, dpr, 0, 0);
+      cctx?.clearRect(0, 0, width, height);
+    }
   }, []);
 
   useEffect(() => {
@@ -64,12 +109,15 @@ export function Studio({ prompt, runId }: { prompt: string; runId: number }) {
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
+    const cursor = cursorRef.current;
+    const cctx = cursor?.getContext('2d') ?? null;
+
     const tick = () => {
       // Continue the current stroke (point-by-point).
       const current = currentStrokeRef.current;
       if (current) {
         const { action } = current;
-        const nextIndex = Math.min(current.index + 2, action.points.length - 1);
+        const nextIndex = Math.min(current.index + STROKE_POINTS_PER_FRAME, action.points.length - 1);
 
         ctx.strokeStyle = action.color;
         ctx.lineWidth = action.size;
@@ -85,7 +133,21 @@ export function Studio({ prompt, runId }: { prompt: string; runId: number }) {
         ctx.stroke();
         ctx.globalAlpha = 1;
 
-        if (nextIndex >= action.points.length - 1) currentStrokeRef.current = null;
+        if (cctx) {
+          const [cx, cy] = action.points[nextIndex];
+          cctx.clearRect(0, 0, 900, 540);
+          cctx.globalAlpha = 0.9;
+          cctx.fillStyle = action.color;
+          cctx.beginPath();
+          cctx.arc(cx, cy, Math.max(2, action.size / 2), 0, Math.PI * 2);
+          cctx.fill();
+          cctx.globalAlpha = 1;
+        }
+
+        if (nextIndex >= action.points.length - 1) {
+          currentStrokeRef.current = null;
+          cctx?.clearRect(0, 0, 900, 540);
+        }
         else currentStrokeRef.current = { action, index: nextIndex };
       }
 
@@ -93,11 +155,8 @@ export function Studio({ prompt, runId }: { prompt: string; runId: number }) {
       if (!currentStrokeRef.current) {
         const next = queueRef.current.shift();
         if (next) {
-          if (next.action_type === 'fill_rect') {
-            renderAction(ctx, next);
-          } else {
-            currentStrokeRef.current = { action: next, index: 0 };
-          }
+          if (next.action_type === 'draw_stroke') currentStrokeRef.current = { action: next, index: 0 };
+          else renderAction(ctx, next);
         }
       }
 
@@ -133,7 +192,12 @@ export function Studio({ prompt, runId }: { prompt: string; runId: number }) {
 
     ws.onopen = () => {
       setFeed((prev) => [...prev, 'Connected. Starting session...']);
-      ws.send(JSON.stringify({ type: 'start_session', data: { prompt, width: 900, height: 540 } }));
+      ws.send(
+        JSON.stringify({
+          type: 'start_session',
+          data: { prompt, width: 900, height: 540, style_preset: stylePreset },
+        }),
+      );
     };
 
     ws.onmessage = (event) => {
@@ -201,7 +265,7 @@ export function Studio({ prompt, runId }: { prompt: string; runId: number }) {
     };
 
     return () => ws.close();
-  }, [prompt, runId]);
+  }, [prompt, runId, stylePreset]);
 
   const sendControl = (type: string, data?: Record<string, unknown>) => {
     const ws = socketRef.current;
@@ -212,7 +276,10 @@ export function Studio({ prompt, runId }: { prompt: string; runId: number }) {
   return (
     <section className="studio-wrap">
       <section className="studio">
-        <canvas ref={canvasRef} className="canvas" />
+        <div className="canvas-stack">
+          <canvas ref={canvasRef} className="canvas" />
+          <canvas ref={cursorRef} className="cursor" />
+        </div>
         <aside className="feed">
           <h3>Live Action Feed</h3>
           {policyStatus ? <p className="policy">{policyStatus}</p> : null}

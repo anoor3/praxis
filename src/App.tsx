@@ -3,6 +3,7 @@ import { Studio } from './Studio';
 
 export function App() {
   const [prompt, setPrompt] = useState('Paint a beautiful sunset mountain lake with pine trees');
+  const [stylePreset, setStylePreset] = useState<'dreamy_oil'>('dreamy_oil');
   const [runId, setRunId] = useState(0);
 
   const title = useMemo(() => 'Praxis Studio · Give AI Hands', []);
@@ -18,6 +19,12 @@ export function App() {
         </p>
       </header>
       <section className="controls">
+        <label>
+          Style
+          <select value={stylePreset} onChange={(e) => setStylePreset(e.target.value as 'dreamy_oil')}>
+            <option value="dreamy_oil">Dreamy oil painting</option>
+          </select>
+        </label>
         <textarea
           value={prompt}
           onChange={(event) => setPrompt(event.target.value)}
@@ -28,7 +35,7 @@ export function App() {
           <button onClick={() => setRunId((value) => value + 1)}>Start Painting</button>
         </div>
       </section>
-      <Studio prompt={prompt} runId={runId} />
+      <Studio prompt={prompt} runId={runId} stylePreset={stylePreset} />
     </div>
   );
 }

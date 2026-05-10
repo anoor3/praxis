@@ -23,6 +23,10 @@ Optional knobs:
 - `PRAXIS_ACTION_DELAY_MS` (default `60`): delay between action batches, higher = slower painting.
 - `PRAXIS_REQUIRE_OPENAI=1`: if set, session errors out instead of falling back.
 
+Style presets:
+
+- `dreamy_oil` (default): atmospheric, painterly lighting; encourages gradients + soft highlights.
+
 ## Run with Docker
 
 ```bash

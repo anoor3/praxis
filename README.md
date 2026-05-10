@@ -100,6 +100,8 @@ export PRAXIS_ACTION_DELAY_MS=150   # optional (slower painting)
 export PRAXIS_REQUIRE_OPENAI=1      # optional (no fallback)
 ```
 
+Style presets are selected in the UI (currently: "dreamy oil painting").
+
 ## Run tests
 
 ```bash

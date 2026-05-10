@@ -54,11 +54,16 @@ def generate_actions_local(prompt: str, width: int, height: int) -> list[Action]
     return actions
 
 
-def generate_actions_with_meta(prompt: str, width: int, height: int) -> Tuple[list[Action], str, Optional[str]]:
+def generate_actions_with_meta(
+    prompt: str,
+    width: int,
+    height: int,
+    style_preset: str = "dreamy_oil",
+) -> Tuple[list[Action], str, Optional[str]]:
     """Returns (actions, mode, error_message)."""
 
     try:
-        actions = generate_actions_via_openai(prompt, width, height)
+        actions = generate_actions_via_openai(prompt, width, height, style_preset=style_preset)
         return actions, "openai", None
     except OpenAIError as e:
         actions = generate_actions_local(prompt, width, height)
