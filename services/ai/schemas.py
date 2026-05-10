@@ -1,4 +1,4 @@
-from typing import Literal
+from typing import Literal, Union
 from pydantic import BaseModel, Field
 
 
@@ -27,4 +27,4 @@ class FillRectAction(BaseModel):
     h: float
 
 
-Action = DrawStrokeAction | FillRectAction
+Action = Union[DrawStrokeAction, FillRectAction]

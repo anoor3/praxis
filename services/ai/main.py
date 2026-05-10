@@ -1,8 +1,11 @@
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 
+from env import load_dotenv
 from schemas import StartSessionRequest
 from session import SessionRunner
+
+load_dotenv()
 
 app = FastAPI(title="Praxis AI Service", version="0.2.0")
 app.add_middleware(

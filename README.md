@@ -85,6 +85,21 @@ npm run dev
 
 Open the app and start painting with prompts.
 
+## Optional: use OpenAI for smarter painting
+
+By default the backend uses a simple built-in stroke policy (no API keys).
+If you set an OpenAI key, the backend will ask a model to generate the paint actions.
+
+Set env vars before starting the backend:
+
+```bash
+export OPENAI_API_KEY="..."
+export OPENAI_MODEL="gpt-4o-mini"   # optional
+export PRAXIS_MAX_ACTIONS=80        # optional
+export PRAXIS_ACTION_DELAY_MS=150   # optional (slower painting)
+export PRAXIS_REQUIRE_OPENAI=1      # optional (no fallback)
+```
+
 ## Run tests
 
 ```bash

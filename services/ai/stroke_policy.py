@@ -1,5 +1,9 @@
 from random import Random
-from schemas import DrawStrokeAction, FillRectAction, Action
+from typing import Optional, Tuple
+
+from schemas import Action, DrawStrokeAction, FillRectAction
+
+from openai_policy import OpenAIError, generate_actions_via_openai
 
 
 def _palette(prompt: str) -> dict[str, str]:
@@ -11,7 +15,7 @@ def _palette(prompt: str) -> dict[str, str]:
     return {"sky": "#78b6ff", "ground": "#70b9d6", "accent": "#f8fbd1", "tree": "#2f5b45"}
 
 
-def generate_actions(prompt: str, width: int, height: int) -> list[Action]:
+def generate_actions_local(prompt: str, width: int, height: int) -> list[Action]:
     palette = _palette(prompt)
     rng = Random(prompt)
 
@@ -47,4 +51,20 @@ def generate_actions(prompt: str, width: int, height: int) -> list[Action]:
                 points=[(sx, y), ((sx + ex) / 2, y + rng.uniform(-8, 8)), (ex, y)],
             )
         )
+    return actions
+
+
+def generate_actions_with_meta(prompt: str, width: int, height: int) -> Tuple[list[Action], str, Optional[str]]:
+    """Returns (actions, mode, error_message)."""
+
+    try:
+        actions = generate_actions_via_openai(prompt, width, height)
+        return actions, "openai", None
+    except OpenAIError as e:
+        actions = generate_actions_local(prompt, width, height)
+        return actions, "fallback", str(e)
+
+
+def generate_actions(prompt: str, width: int, height: int) -> list[Action]:
+    actions, _, _ = generate_actions_with_meta(prompt, width, height)
     return actions

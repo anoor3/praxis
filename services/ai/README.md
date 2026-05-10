@@ -10,6 +10,19 @@ pip install -r requirements.txt
 uvicorn main:app --reload --port 8000
 ```
 
+## Use OpenAI (optional)
+
+Create `services/ai/.env` (see `services/ai/.env.example`) and add:
+
+```bash
+OPENAI_API_KEY=your_key_here
+```
+
+Optional knobs:
+
+- `PRAXIS_ACTION_DELAY_MS` (default `60`): delay between action batches, higher = slower painting.
+- `PRAXIS_REQUIRE_OPENAI=1`: if set, session errors out instead of falling back.
+
 ## Run with Docker
 
 ```bash

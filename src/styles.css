@@ -14,6 +14,7 @@ button { background: linear-gradient(135deg, #6c73ff, #6bd5ff); border: none; co
 .canvas { width: 100%; max-width: 900px; border: 1px solid #3f4974; border-radius: 14px; background: #000; }
 .feed { background: rgba(10, 15, 35, 0.85); border: 1px solid #384266; border-radius: 14px; padding: 12px; min-height: 540px; }
 .feed h3 { margin-top: 0; }
+.policy { margin: 8px 0 12px; padding: 8px 10px; border-radius: 10px; background: rgba(255, 255, 255, 0.08); font-size: 12px; line-height: 1.35; }
 .feed ul { list-style: none; padding: 0; display: grid; gap: 8px; }
 .feed li { background: #192042; border-radius: 8px; padding: 8px 10px; font-size: 0.92rem; }
 .runtime-controls{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:8px}
