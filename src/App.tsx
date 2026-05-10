@@ -12,6 +12,10 @@ export function App() {
       <header className="hero">
         <h1>{title}</h1>
         <p>Type a prompt and watch Praxis plan, inspect, critique, and paint from a blank canvas.</p>
+        <p>
+          A live creative agent prototype: type a prompt and watch Praxis plan, move, and paint stroke by
+          stroke.
+        </p>
       </header>
       <section className="controls">
         <textarea

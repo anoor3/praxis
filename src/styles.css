@@ -8,6 +8,8 @@ body { margin: 0; background: radial-gradient(circle at top left, #1c2448, #090d
 textarea, input { width: 100%; border: 1px solid #394268; border-radius: 12px; padding: 12px; background: #121936; color: #f7f9ff; }
 button { background: linear-gradient(135deg, #6c73ff, #6bd5ff); border: none; color: #0b1020; font-weight: 700; border-radius: 10px; padding: 10px 16px; cursor: pointer; }
 .studio-wrap{display:grid;gap:12px}
+textarea { width: 100%; border: 1px solid #394268; border-radius: 12px; padding: 12px; background: #121936; color: #f7f9ff; }
+button { background: linear-gradient(135deg, #6c73ff, #6bd5ff); border: none; color: #0b1020; font-weight: 700; border-radius: 10px; padding: 10px 16px; cursor: pointer; }
 .studio { display: grid; grid-template-columns: 1fr 320px; gap: 16px; align-items: start; }
 .canvas { width: 100%; max-width: 900px; border: 1px solid #3f4974; border-radius: 14px; background: #000; }
 .feed { background: rgba(10, 15, 35, 0.85); border: 1px solid #384266; border-radius: 14px; padding: 12px; min-height: 540px; }
@@ -16,3 +18,4 @@ button { background: linear-gradient(135deg, #6c73ff, #6bd5ff); border: none; co
 .feed li { background: #192042; border-radius: 8px; padding: 8px 10px; font-size: 0.92rem; }
 .runtime-controls{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:8px}
 @media (max-width: 1024px) { .studio { grid-template-columns: 1fr; } .feed { min-height: auto; } .runtime-controls{grid-template-columns:1fr;} }
+@media (max-width: 1024px) { .studio { grid-template-columns: 1fr; } .feed { min-height: auto; } }

@@ -10,6 +10,11 @@ from session_memory import SessionMemory
 from storage import append_event, create_session, set_session_status
 from stroke_policy import generate_actions
 from vision import inspect_canvas
+from fastapi import WebSocket
+
+from planner import make_phase_plan
+from schemas import StartSessionRequest, DrawStrokeAction, FillRectAction
+from stroke_policy import generate_actions
 
 
 @dataclass
@@ -42,6 +47,13 @@ class SessionRunner:
         for index, action in enumerate(actions):
             if self.flags.stopped:
                 set_session_status(session_id, "stopped")
+        plan = make_phase_plan(request.prompt)
+        await self.websocket.send_json({"type": "session_started", "data": {"prompt": request.prompt, "phases": plan.phases}})
+
+        actions = generate_actions(request.prompt, request.width, request.height)
+
+        for index, action in enumerate(actions):
+            if self.flags.stopped:
                 break
             while self.flags.paused and not self.flags.stopped:
                 await asyncio.sleep(0.05)
@@ -74,6 +86,13 @@ class SessionRunner:
 
     async def interrupt(self, instruction: str) -> None:
         await self.websocket.send_json({"type": "phase_changed", "data": {"label": f"Adapting to: {instruction}"}})
+            await self.websocket.send_json({"type": "action_emitted", "data": {"index": index, "action": action.model_dump()}})
+            await asyncio.sleep(0.08)
+
+        await self.websocket.send_json({"type": "session_finished", "data": {"total_actions": len(actions)}})
+
+    async def interrupt(self, instruction: str) -> None:
+        await self.websocket.send_json({"type": "phase_changed", "data": {"label": f"Adapting to instruction: {instruction}"}})
 
     def pause(self) -> None:
         self.flags.paused = True
