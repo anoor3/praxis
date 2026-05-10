@@ -3,9 +3,8 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from schemas import StartSessionRequest
 from session import SessionRunner
-from storage import init_db
 
-app = FastAPI(title="Praxis AI Service", version="0.3.0")
+app = FastAPI(title="Praxis AI Service", version="0.2.0")
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -13,11 +12,6 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
-
-@app.on_event("startup")
-async def startup_event() -> None:
-    init_db()
 
 
 @app.get("/health")
