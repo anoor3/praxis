@@ -33,13 +33,65 @@ def _style_block(style_preset: str) -> str:
     return f"Style preset: {style_preset}"
 
 
+def _request_actions(
+    *,
+    api_key: str,
+    model: str,
+    system: str,
+    user: str,
+    temperature: float,
+    timeout_s: int,
+) -> list[Action]:
+    payload = {
+        "model": model,
+        "messages": [
+            {"role": "system", "content": system},
+            {"role": "user", "content": user},
+        ],
+        "temperature": temperature,
+        "response_format": {"type": "json_object"},
+    }
+
+    req = urllib.request.Request(
+        "https://api.openai.com/v1/chat/completions",
+        data=json.dumps(payload).encode("utf-8"),
+        headers={
+            "Authorization": f"Bearer {api_key}",
+            "Content-Type": "application/json",
+        },
+        method="POST",
+    )
+
+    try:
+        with urllib.request.urlopen(req, timeout=timeout_s) as resp:
+            body = resp.read().decode("utf-8")
+    except Exception as e:  # noqa: BLE001
+        raise OpenAIError(f"OpenAI request failed: {e}") from e
+
+    data = json.loads(body)
+    content = data["choices"][0]["message"]["content"]
+    decoded = json.loads(content)
+    raw_actions = decoded.get("actions", [])
+    if not isinstance(raw_actions, list):
+        raise OpenAIError("OpenAI response JSON must contain list key 'actions'")
+
+    actions: list[Action] = []
+    for raw in raw_actions:
+        if isinstance(raw, dict):
+            actions.append(_coerce_action(raw))
+    return actions
+
+
 def generate_actions_via_openai(prompt: str, width: int, height: int, style_preset: str = "dreamy_oil") -> list[Action]:
     api_key = os.getenv("OPENAI_API_KEY")
     if not api_key:
         raise OpenAIError("OPENAI_API_KEY is not set")
 
     model = os.getenv("OPENAI_MODEL", "gpt-4o-mini")
-    max_actions = int(os.getenv("PRAXIS_MAX_ACTIONS", "80"))
+    min_actions = int(os.getenv("PRAXIS_MIN_ACTIONS", "80"))
+    max_actions = int(os.getenv("PRAXIS_MAX_ACTIONS", "200"))
+    if max_actions < min_actions:
+        max_actions = min_actions
 
     system = (
         "You are a drawing agent that outputs JSON only. "
@@ -55,49 +107,36 @@ def generate_actions_via_openai(prompt: str, width: int, height: int, style_pres
         "avoid geometric symbols; use soft edges and layered glazing; "
         "never leave large areas unpainted black. "
         + _style_block(style_preset)
-        + "\nMake the painting match the prompt; build up from big shapes to details; output 20-"
-        + str(max_actions)
-        + " actions."
+        + "\nMake the painting match the prompt; build up from big shapes to details; "
+        + f"Output between {min_actions} and {max_actions} actions (MUST be at least {min_actions})."
     )
     user = f"Prompt: {prompt}\nCanvas: width={width}, height={height}."
 
-    payload = {
-        "model": model,
-        "messages": [
-            {"role": "system", "content": system},
-            {"role": "user", "content": user},
-        ],
-        "temperature": 0.7,
-        "response_format": {"type": "json_object"},
-    }
+    temperature = float(os.getenv("PRAXIS_TEMPERATURE", "0.8"))
+    timeout_s = int(os.getenv("PRAXIS_OPENAI_TIMEOUT_S", "90"))
 
-    req = urllib.request.Request(
-        "https://api.openai.com/v1/chat/completions",
-        data=json.dumps(payload).encode("utf-8"),
-        headers={
-            "Authorization": f"Bearer {api_key}",
-            "Content-Type": "application/json",
-        },
-        method="POST",
+    actions = _request_actions(
+        api_key=api_key,
+        model=model,
+        system=system,
+        user=user,
+        temperature=temperature,
+        timeout_s=timeout_s,
     )
 
-    try:
-        with urllib.request.urlopen(req, timeout=60) as resp:
-            body = resp.read().decode("utf-8")
-    except Exception as e:  # noqa: BLE001
-        raise OpenAIError(f"OpenAI request failed: {e}") from e
+    # If the model ignores the count constraint, retry once with stronger wording.
+    if len(actions) < min_actions:
+        retry_system = system + "\nIMPORTANT: If you output fewer actions than required, you have failed."
+        actions = _request_actions(
+            api_key=api_key,
+            model=model,
+            system=retry_system,
+            user=user,
+            temperature=temperature,
+            timeout_s=timeout_s,
+        )
 
-    data = json.loads(body)
-    content = data["choices"][0]["message"]["content"]
-    decoded = json.loads(content)
-    raw_actions = decoded.get("actions", [])
-    if not isinstance(raw_actions, list):
-        raise OpenAIError("OpenAI response JSON must contain list key 'actions'")
-
-    actions: list[Action] = []
-    for raw in raw_actions[:max_actions]:
-        if isinstance(raw, dict):
-            actions.append(_coerce_action(raw))
-    if not actions:
-        raise OpenAIError("OpenAI returned zero valid actions")
+    actions = actions[:max_actions]
+    if len(actions) < min_actions:
+        raise OpenAIError(f"OpenAI returned {len(actions)} actions, expected at least {min_actions}")
     return actions

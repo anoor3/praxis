@@ -49,6 +49,8 @@ function renderAction(ctx: CanvasRenderingContext2D, action: Action) {
 }
 
 const STROKE_POINTS_PER_FRAME = 1;
+const ACTIONS_PER_SECOND = 8;
+const ACTION_COOLDOWN_MS = 1000 / ACTIONS_PER_SECOND;
 
 export function Studio({
   prompt,
@@ -64,6 +66,7 @@ export function Studio({
   const socketRef = useRef<WebSocket | null>(null);
   const queueRef = useRef<Action[]>([]);
   const rafRef = useRef<number | null>(null);
+  const lastActionAtRef = useRef<number>(0);
   const currentStrokeRef = useRef<
     { action: Extract<Action, { action_type: 'draw_stroke' }>; index: number } | null
   >(null);
@@ -113,6 +116,8 @@ export function Studio({
     const cctx = cursor?.getContext('2d') ?? null;
 
     const tick = () => {
+      const now = performance.now();
+
       // Continue the current stroke (point-by-point).
       const current = currentStrokeRef.current;
       if (current) {
@@ -135,13 +140,30 @@ export function Studio({
 
         if (cctx) {
           const [cx, cy] = action.points[nextIndex];
+          const [px, py] = action.points[Math.max(0, nextIndex - 1)];
+          const angle = Math.atan2(cy - py, cx - px);
+
           cctx.clearRect(0, 0, 900, 540);
+
+          // Brush cursor: a small bristle dot + angled handle.
+          cctx.save();
+          cctx.translate(cx, cy);
+          cctx.rotate(angle);
           cctx.globalAlpha = 0.9;
+
+          cctx.strokeStyle = 'rgba(255,255,255,0.25)';
+          cctx.lineWidth = 2;
+          cctx.beginPath();
+          cctx.moveTo(-14, -10);
+          cctx.lineTo(-2, -2);
+          cctx.stroke();
+
           cctx.fillStyle = action.color;
           cctx.beginPath();
-          cctx.arc(cx, cy, Math.max(2, action.size / 2), 0, Math.PI * 2);
+          cctx.arc(0, 0, Math.max(2, action.size / 2), 0, Math.PI * 2);
           cctx.fill();
-          cctx.globalAlpha = 1;
+
+          cctx.restore();
         }
 
         if (nextIndex >= action.points.length - 1) {
@@ -153,8 +175,11 @@ export function Studio({
 
       // Start a new action if idle.
       if (!currentStrokeRef.current) {
-        const next = queueRef.current.shift();
+        const canConsume = now - lastActionAtRef.current >= ACTION_COOLDOWN_MS;
+        const next = canConsume ? queueRef.current.shift() : undefined;
         if (next) {
+          lastActionAtRef.current = now;
+
           if (next.action_type === 'draw_stroke') currentStrokeRef.current = { action: next, index: 0 };
           else renderAction(ctx, next);
         }
