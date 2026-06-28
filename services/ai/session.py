@@ -69,7 +69,7 @@ class SessionRunner:
             )
             return
 
-        delay_ms = int(os.getenv("PRAXIS_ACTION_DELAY_MS", "60"))
+        delay_ms = int(os.getenv("PRAXIS_ACTION_DELAY_MS", "30"))
         delay_s = max(0.0, delay_ms / 1000.0)
         actions_per_phase = max(1, len(actions) // max(1, len(plan.phases)))
 
