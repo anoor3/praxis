@@ -3,6 +3,47 @@ import type { Action } from './types';
 
 const WS_URL = 'ws://localhost:8000/ws/session';
 
+/** Catmull-Rom spline: interpolate between p1 and p2 given neighbors p0, p3 */
+function catmullRom(
+  p0: [number, number],
+  p1: [number, number],
+  p2: [number, number],
+  p3: [number, number],
+  t: number,
+): [number, number] {
+  const t2 = t * t;
+  const t3 = t2 * t;
+  const x =
+    0.5 *
+    (2 * p1[0] +
+      (-p0[0] + p2[0]) * t +
+      (2 * p0[0] - 5 * p1[0] + 4 * p2[0] - p3[0]) * t2 +
+      (-p0[0] + 3 * p1[0] - 3 * p2[0] + p3[0]) * t3);
+  const y =
+    0.5 *
+    (2 * p1[1] +
+      (-p0[1] + p2[1]) * t +
+      (2 * p0[1] - 5 * p1[1] + 4 * p2[1] - p3[1]) * t2 +
+      (-p0[1] + 3 * p1[1] - 3 * p2[1] + p3[1]) * t3);
+  return [x, y];
+}
+
+/** Subdivide points using Catmull-Rom for smooth curves */
+function smoothPoints(raw: [number, number][], subdivisions = 4): [number, number][] {
+  if (raw.length < 3) return raw;
+  const result: [number, number][] = [raw[0]];
+  for (let i = 0; i < raw.length - 1; i++) {
+    const p0 = raw[Math.max(0, i - 1)];
+    const p1 = raw[i];
+    const p2 = raw[Math.min(raw.length - 1, i + 1)];
+    const p3 = raw[Math.min(raw.length - 1, i + 2)];
+    for (let s = 1; s <= subdivisions; s++) {
+      result.push(catmullRom(p0, p1, p2, p3, s / subdivisions));
+    }
+  }
+  return result;
+}
+
 function renderAction(ctx: CanvasRenderingContext2D, action: Action) {
   if (action.action_type === 'fill_rect') {
     ctx.fillStyle = action.color;
@@ -33,23 +74,23 @@ function renderAction(ctx: CanvasRenderingContext2D, action: Action) {
 
   if (action.points.length < 2) return;
 
+  const smooth = smoothPoints(action.points);
   ctx.strokeStyle = action.color;
   ctx.lineWidth = action.size;
   ctx.globalAlpha = action.opacity;
   ctx.lineCap = 'round';
   ctx.lineJoin = 'round';
   ctx.beginPath();
-  ctx.moveTo(action.points[0][0], action.points[0][1]);
-  for (let i = 1; i < action.points.length; i += 1) {
-    const [x, y] = action.points[i];
-    ctx.lineTo(x, y);
+  ctx.moveTo(smooth[0][0], smooth[0][1]);
+  for (let i = 1; i < smooth.length; i += 1) {
+    ctx.lineTo(smooth[i][0], smooth[i][1]);
   }
   ctx.stroke();
   ctx.globalAlpha = 1;
 }
 
-const STROKE_POINTS_PER_FRAME = 1;
-const ACTIONS_PER_SECOND = 8;
+const STROKE_POINTS_PER_FRAME = 3;
+const ACTIONS_PER_SECOND = 6;
 const ACTION_COOLDOWN_MS = 1000 / ACTIONS_PER_SECOND;
 
 export function Studio({
@@ -68,7 +109,7 @@ export function Studio({
   const rafRef = useRef<number | null>(null);
   const lastActionAtRef = useRef<number>(0);
   const currentStrokeRef = useRef<
-    { action: Extract<Action, { action_type: 'draw_stroke' }>; index: number } | null
+    { action: Extract<Action, { action_type: 'draw_stroke' }>; points: [number, number][]; index: number } | null
   >(null);
 
   const [feed, setFeed] = useState<string[]>(['Ready. Press “Start Painting”.']);
@@ -121,8 +162,8 @@ export function Studio({
       // Continue the current stroke (point-by-point).
       const current = currentStrokeRef.current;
       if (current) {
-        const { action } = current;
-        const nextIndex = Math.min(current.index + STROKE_POINTS_PER_FRAME, action.points.length - 1);
+        const { action, points } = current;
+        const nextIndex = Math.min(current.index + STROKE_POINTS_PER_FRAME, points.length - 1);
 
         ctx.strokeStyle = action.color;
         ctx.lineWidth = action.size;
@@ -131,16 +172,16 @@ export function Studio({
         ctx.lineJoin = 'round';
 
         ctx.beginPath();
-        ctx.moveTo(action.points[current.index][0], action.points[current.index][1]);
+        ctx.moveTo(points[current.index][0], points[current.index][1]);
         for (let i = current.index + 1; i <= nextIndex; i += 1) {
-          ctx.lineTo(action.points[i][0], action.points[i][1]);
+          ctx.lineTo(points[i][0], points[i][1]);
         }
         ctx.stroke();
         ctx.globalAlpha = 1;
 
         if (cctx) {
-          const [cx, cy] = action.points[nextIndex];
-          const [px, py] = action.points[Math.max(0, nextIndex - 1)];
+          const [cx, cy] = points[nextIndex];
+          const [px, py] = points[Math.max(0, nextIndex - 1)];
           const angle = Math.atan2(cy - py, cx - px);
 
           cctx.clearRect(0, 0, 900, 540);
@@ -166,11 +207,11 @@ export function Studio({
           cctx.restore();
         }
 
-        if (nextIndex >= action.points.length - 1) {
+        if (nextIndex >= points.length - 1) {
           currentStrokeRef.current = null;
           cctx?.clearRect(0, 0, 900, 540);
         }
-        else currentStrokeRef.current = { action, index: nextIndex };
+        else currentStrokeRef.current = { action, points, index: nextIndex };
       }
 
       // Start a new action if idle.
@@ -180,7 +221,7 @@ export function Studio({
         if (next) {
           lastActionAtRef.current = now;
 
-          if (next.action_type === 'draw_stroke') currentStrokeRef.current = { action: next, index: 0 };
+          if (next.action_type === 'draw_stroke') currentStrokeRef.current = { action: next, points: smoothPoints(next.points), index: 0 };
           else renderAction(ctx, next);
         }
       }
