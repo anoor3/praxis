@@ -42,13 +42,62 @@ function renderAction(ctx: CanvasRenderingContext2D, action: Action) {
 function easeInOut(t: number) { return t < 0.5 ? 2*t*t : 1 - (-2*t+2)**2/2; }
 function lerp(a: number, b: number, t: number) { return a + (b-a)*t; }
 
-// Palette positioning
+// Palette positioning — cinematic wooden palette tray at bottom-right
+const PALETTE_TRAY_X = 780;
+const PALETTE_TRAY_Y = 470;
 const paletteColors: string[] = [];
+
 function getPaletteSlot(color: string): [number, number] {
   let idx = paletteColors.indexOf(color);
   if (idx === -1) { paletteColors.push(color); idx = paletteColors.length - 1; }
-  const col = idx % 6, row = Math.floor(idx / 6);
-  return [830 - col * 24, 510 - row * 24];
+  // Arrange in an arc like a real painter's palette
+  const angle = -0.8 + (idx / 12) * 1.6;
+  const radius = 50 + (idx % 2) * 18;
+  return [PALETTE_TRAY_X + Math.cos(angle) * radius, PALETTE_TRAY_Y + Math.sin(angle) * radius * 0.6];
+}
+
+function drawPaletteTray(cctx: CanvasRenderingContext2D) {
+  // Wooden palette shape
+  cctx.save();
+  cctx.globalAlpha = 0.9;
+  cctx.fillStyle = '#5C3D1E';
+  cctx.beginPath();
+  cctx.ellipse(PALETTE_TRAY_X, PALETTE_TRAY_Y, 90, 55, 0.1, 0, Math.PI * 2);
+  cctx.fill();
+  // Wood grain
+  cctx.globalAlpha = 0.15;
+  cctx.strokeStyle = '#3A2510';
+  cctx.lineWidth = 0.8;
+  for (let i = 0; i < 6; i++) {
+    cctx.beginPath();
+    cctx.ellipse(PALETTE_TRAY_X - 10 + i * 8, PALETTE_TRAY_Y, 70 - i * 5, 40 - i * 3, 0.1, 0, Math.PI * 2);
+    cctx.stroke();
+  }
+  // Thumb hole
+  cctx.globalAlpha = 0.8;
+  cctx.fillStyle = '#0a0e1a';
+  cctx.beginPath();
+  cctx.ellipse(PALETTE_TRAY_X + 55, PALETTE_TRAY_Y + 20, 14, 10, 0.3, 0, Math.PI * 2);
+  cctx.fill();
+  cctx.restore();
+
+  // Paint blobs
+  for (let i = 0; i < paletteColors.length; i++) {
+    const [px, py] = getPaletteSlot(paletteColors[i]);
+    cctx.globalAlpha = 0.95;
+    cctx.fillStyle = paletteColors[i];
+    cctx.beginPath();
+    // Blobby shape
+    cctx.ellipse(px, py, 9 + Math.sin(i) * 2, 7 + Math.cos(i) * 2, i * 0.3, 0, Math.PI * 2);
+    cctx.fill();
+    // Highlight on blob
+    cctx.globalAlpha = 0.3;
+    cctx.fillStyle = '#fff';
+    cctx.beginPath();
+    cctx.arc(px - 2, py - 2, 3, 0, Math.PI * 2);
+    cctx.fill();
+    cctx.globalAlpha = 1;
+  }
 }
 
 // Animation state machine
@@ -87,14 +136,8 @@ export function Studio({ prompt, runId, stylePreset }: { prompt: string; runId: 
 
   function drawBrush(cctx: CanvasRenderingContext2D, x: number, y: number, angle: number, color: string, size: number, lifted: boolean) {
     cctx.clearRect(0, 0, 900, 540);
-    // Draw palette blobs
-    for (let i = 0; i < paletteColors.length; i++) {
-      const [px, py] = getPaletteSlot(paletteColors[i]);
-      cctx.globalAlpha = 0.85; cctx.fillStyle = paletteColors[i];
-      cctx.beginPath(); cctx.arc(px, py, 9, 0, Math.PI*2); cctx.fill();
-      cctx.globalAlpha = 0.3; cctx.strokeStyle = '#fff'; cctx.lineWidth = 0.5;
-      cctx.stroke(); cctx.globalAlpha = 1;
-    }
+    // Draw the palette tray
+    drawPaletteTray(cctx);
     cctx.save();
     cctx.translate(x, y);
     cctx.rotate(angle);
