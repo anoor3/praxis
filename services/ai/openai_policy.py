@@ -24,13 +24,21 @@ def _coerce_action(obj: dict[str, Any]) -> Action:
 
 
 def _style_block(style_preset: str) -> str:
-    if style_preset == "dreamy_oil":
-        return (
-            "Style preset: dreamy oil painting. "
-            "Prioritize strong composition, atmospheric perspective, soft edges, painterly lighting, "
-            "and a limited harmonious palette. Use gradients for sky/water depth and circles for glow and soft highlights."
-        )
-    return f"Style preset: {style_preset}"
+    presets = {
+        "dreamy_oil": (
+            "Style: dreamy oil painting. Warm undertones, visible brushwork, "
+            "soft lost-and-found edges, atmospheric depth, glazing layers."
+        ),
+        "watercolor": (
+            "Style: loose watercolor. Wet-into-wet bleeds, paper grain showing through, "
+            "limited palette, expressive washes, dry-brush details."
+        ),
+        "impressionist": (
+            "Style: impressionist. Broken color, visible dabs, complementary shadows, "
+            "light-filled, vibrant and spontaneous."
+        ),
+    }
+    return presets.get(style_preset, f"Style: {style_preset}")
 
 
 def _request_actions(
@@ -94,23 +102,43 @@ def generate_actions_via_openai(prompt: str, width: int, height: int, style_pres
         max_actions = min_actions
 
     system = (
-        "You are a drawing agent that outputs JSON only. "
-        "Return a single JSON object with key 'actions'. "
-        "Each action must be one of:\n"
-        "1) fill_rect: {action_type:'fill_rect', reason_label:str, color:'#RRGGBB', x:number, y:number, w:number, h:number}\n"
-        "2) gradient_rect: {action_type:'gradient_rect', reason_label:str, x:number, y:number, w:number, h:number, direction:'vertical'|'horizontal', color_stops:[[stop0to1,'#RRGGBB'], ...]}\n"
-        "3) fill_circle: {action_type:'fill_circle', reason_label:str, color:'#RRGGBB', x:number, y:number, r:number, opacity:0.05-1.0}\n"
-        "4) draw_stroke: {action_type:'draw_stroke', reason_label:str, color:'#RRGGBB', opacity:0.05-1.0, size:1-40, points:[[x,y],...] }\n"
-        "Rules: use canvas coordinates within width/height; "
-        "for draw_stroke include MANY points (prefer 12-40) so the stroke can animate; "
-        "prefer multiple semi-transparent strokes over big flat blocks; "
-        "avoid geometric symbols; use soft edges and layered glazing; "
-        "never leave large areas unpainted black. "
+        "You are a master painter working on a digital canvas. You paint EXACTLY like a skilled human artist.\n\n"
+        "PROCESS — paint in this order:\n"
+        "1. BLOCK IN: Large gradient_rect washes to establish atmosphere and value structure.\n"
+        "2. UNDERPAINTING: Broad, low-opacity strokes mapping major shapes. Big brush (size 20-40), few points.\n"
+        "3. MIDTONES: Build form with overlapping curved strokes. Medium brush (size 8-18), smooth arcs.\n"
+        "4. COLOR LAYERS: Glazing — semi-transparent strokes layered to mix color optically.\n"
+        "5. DETAILS: Small brush (size 2-6), precise strokes for edges, highlights, texture.\n"
+        "6. FINISHING: Tiny accents, sparkle, final darks for contrast.\n\n"
+        "STROKE RULES:\n"
+        "- Every draw_stroke MUST have 15-50 points forming smooth, flowing curves (like a hand moving).\n"
+        "- Points should follow natural arcs, S-curves, and sweeping motions — NEVER straight lines or zigzags.\n"
+        "- Vary stroke length: long sweeping strokes for backgrounds, short confident dabs for details.\n"
+        "- Overlap strokes slightly — real painters don't leave gaps.\n"
+        "- Use opacity 0.1-0.4 for glazing layers, 0.6-1.0 for opaque marks.\n\n"
+        "COLOR RULES:\n"
+        "- Choose a deliberate limited palette (5-8 base colors) and mix by layering.\n"
+        "- Use color temperature: warm light / cool shadows (or vice versa).\n"
+        "- Never use pure black (#000000) or pure white (#FFFFFF) — always tinted.\n"
+        "- reason_label should describe artistic intent: 'Glazing warm ochre over shadow', 'Dragging sky color into treeline'.\n\n"
+        "OUTPUT FORMAT: Single JSON object with key 'actions'. Each action is one of:\n"
+        "1) fill_rect: {action_type:'fill_rect', reason_label:str, color:'#RRGGBB', x, y, w, h}\n"
+        "2) gradient_rect: {action_type:'gradient_rect', reason_label:str, x, y, w, h, direction:'vertical'|'horizontal', color_stops:[[0-1,'#RRGGBB'],...]}\n"
+        "3) fill_circle: {action_type:'fill_circle', reason_label:str, color:'#RRGGBB', x, y, r, opacity:0.05-1.0}\n"
+        "4) draw_stroke: {action_type:'draw_stroke', reason_label:str, color:'#RRGGBB', opacity:0.05-1.0, size:1-40, points:[[x,y],...]}\n\n"
+        "CONSTRAINTS:\n"
+        f"- Output {min_actions}-{max_actions} actions. At least {min_actions} is MANDATORY.\n"
+        "- Canvas coordinates: 0,0 is top-left. Stay within width/height.\n"
+        "- Build up gradually. No large flat unmodulated areas.\n"
+        "- The final result must clearly depict the prompt subject.\n\n"
         + _style_block(style_preset)
-        + "\nMake the painting match the prompt; build up from big shapes to details; "
-        + f"Output between {min_actions} and {max_actions} actions (MUST be at least {min_actions})."
     )
-    user = f"Prompt: {prompt}\nCanvas: width={width}, height={height}."
+    user = (
+        f"Paint this scene: {prompt}\n"
+        f"Canvas dimensions: {width}x{height} pixels.\n"
+        "Begin with atmosphere, then build shapes, then refine. "
+        "Make every stroke purposeful and beautiful."
+    )
 
     temperature = float(os.getenv("PRAXIS_TEMPERATURE", "0.8"))
     timeout_s = int(os.getenv("PRAXIS_OPENAI_TIMEOUT_S", "90"))
