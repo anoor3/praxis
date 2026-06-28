@@ -135,6 +135,21 @@ export function Studio({ prompt, runId, stylePreset }: { prompt: string; runId: 
   const [currentAction, setCurrentAction] = useState('');
   const [actionCount, setActionCount] = useState(0);
   const [totalActions, setTotalActions] = useState(0);
+  const [history, setHistory] = useState<{ prompt: string; dataUrl: string; date: string }[]>([]);
+  const [showHistory, setShowHistory] = useState(false);
+
+  const downloadCanvas = () => {
+    const c = canvasRef.current; if (!c) return;
+    const link = document.createElement('a');
+    link.download = `praxis-${Date.now()}.png`;
+    link.href = c.toDataURL('image/png');
+    link.click();
+  };
+
+  const saveToHistory = () => {
+    const c = canvasRef.current; if (!c) return;
+    setHistory(h => [...h, { prompt, dataUrl: c.toDataURL('image/png'), date: new Date().toLocaleTimeString() }]);
+  };
 
   function drawBrush(cctx: CanvasRenderingContext2D, x: number, y: number, angle: number, color: string, size: number, lifted: boolean) {
     cctx.clearRect(0, 0, 900, 540);
@@ -299,7 +314,7 @@ export function Studio({ prompt, runId, stylePreset }: { prompt: string; runId: 
         });
       }
       else if (msg.type === 'critique_result') { setFeedItems(p => [...p, { text: `Focus: ${msg.data.biggest_issue}`, type: 'critique' }]); }
-      else if (msg.type === 'session_finished') { setSessionStatus('idle'); setTotalActions(msg.data.total_actions); setFeedItems(p => [...p, { text: `✓ Done — ${msg.data.total_actions} strokes`, type: 'system' }]); }
+      else if (msg.type === 'session_finished') { setSessionStatus('idle'); setTotalActions(msg.data.total_actions); setFeedItems(p => [...p, { text: `✓ Done — ${msg.data.total_actions} strokes`, type: 'system' }]); saveToHistory(); }
       else if (msg.type === 'error') { setSessionStatus('idle'); setFeedItems(p => [...p, { text: `Error: ${msg.data.message}`, type: 'system' }]); }
     };
     ws.onerror = () => { setSessionStatus('idle'); setFeedItems(p => [...p, { text: 'Backend unavailable', type: 'system' }]); };
@@ -316,6 +331,25 @@ export function Studio({ prompt, runId, stylePreset }: { prompt: string; runId: 
 
   return (
     <section className="studio-wrap">
+      <div className="toolbar">
+        <button className="tool-btn" onClick={downloadCanvas} title="Download painting">⬇ Download</button>
+        <button className="tool-btn" onClick={() => setShowHistory(!showHistory)} title="View history">🕘 History{history.length > 0 ? ` (${history.length})` : ''}</button>
+      </div>
+
+      {showHistory && history.length > 0 && (
+        <div className="history-panel">
+          {history.map((h, i) => (
+            <div key={i} className="history-item">
+              <img src={h.dataUrl} alt={h.prompt} />
+              <div className="history-meta">
+                <span className="history-prompt">{h.prompt.slice(0, 40)}</span>
+                <span className="history-time">{h.date}</span>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
       {sessionStatus !== 'idle' && (
         <div className="thinking-panel">
           <div className="thinking-phase"><span className="thinking-label">Phase</span><span className="thinking-value">{currentPhase || 'starting...'}</span></div>
