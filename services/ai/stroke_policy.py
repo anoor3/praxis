@@ -101,30 +101,30 @@ def generate_actions_local(prompt: str, width: int, height: int) -> list[Action]
     ))
 
     # === PHASE 2: Large blocking strokes — atmosphere ===
-    for i in range(20):
-        y_pos = rng.uniform(0, height * 0.6)
+    for i in range(35):
+        y_pos = rng.uniform(0, height * 0.65)
         x_start = rng.uniform(-50, width * 0.3)
-        length = rng.uniform(width * 0.3, width * 0.7)
-        angle = rng.uniform(-0.15, 0.15)
-        points = _wavy_stroke(rng, x_start, y_pos, length, angle, wave=12, num_points=30)
+        length = rng.uniform(width * 0.3, width * 0.8)
+        angle = rng.uniform(-0.12, 0.12)
+        points = _wavy_stroke(rng, x_start, y_pos, length, angle, wave=15, num_points=35)
         color = rng.choice(palette["sky"] + palette["mid"])
         actions.append(DrawStrokeAction(
-            reason_label="Blocking in atmosphere" if i < 10 else "Building sky depth",
-            color=color, size=rng.uniform(18, 35), opacity=rng.uniform(0.08, 0.2),
+            reason_label="Blocking in atmosphere" if i < 15 else "Layering sky depth",
+            color=color, size=rng.uniform(20, 38), opacity=rng.uniform(0.06, 0.18),
             points=points,
         ))
 
     # === PHASE 3: Mid-ground shapes ===
-    for i in range(25):
-        y_pos = rng.uniform(height * 0.35, height * 0.75)
-        x_start = rng.uniform(0, width * 0.8)
-        length = rng.uniform(60, 200)
-        angle = rng.uniform(-0.5, 0.5)
-        points = _wavy_stroke(rng, x_start, y_pos, length, angle, wave=10, num_points=22)
-        color = rng.choice(palette["mid"] + palette["ground"])
+    for i in range(40):
+        y_pos = rng.uniform(height * 0.3, height * 0.78)
+        x_start = rng.uniform(0, width * 0.85)
+        length = rng.uniform(50, 220)
+        angle = rng.uniform(-0.6, 0.6)
+        points = _wavy_stroke(rng, x_start, y_pos, length, angle, wave=10, num_points=25)
+        color = rng.choice(palette["mid"] + palette["ground"] + palette["warm"][:1])
         actions.append(DrawStrokeAction(
-            reason_label="Shaping mid-ground forms",
-            color=color, size=rng.uniform(10, 22), opacity=rng.uniform(0.15, 0.35),
+            reason_label="Shaping mid-ground forms" if i < 20 else "Building volume with overlaps",
+            color=color, size=rng.uniform(8, 20), opacity=rng.uniform(0.12, 0.35),
             points=points,
         ))
 
@@ -145,7 +145,7 @@ def generate_actions_local(prompt: str, width: int, height: int) -> list[Action]
         ))
 
         # Foliage — many overlapping strokes
-        for _ in range(rng.randint(6, 12)):
+        for _ in range(rng.randint(8, 16)):
             fx = tree_x + rng.uniform(-35, 35)
             fy = rng.uniform(tree_top, tree_top + (tree_bottom - tree_top) * 0.5)
             angle = rng.uniform(0, 2 * pi)
@@ -159,55 +159,55 @@ def generate_actions_local(prompt: str, width: int, height: int) -> list[Action]
             ))
 
     # === PHASE 5: Lighting and highlights ===
-    for i in range(20):
-        y_pos = rng.uniform(0, height * 0.7)
+    for i in range(30):
+        y_pos = rng.uniform(0, height * 0.75)
         x_start = rng.uniform(0, width)
-        length = rng.uniform(40, 150)
+        length = rng.uniform(40, 180)
         angle = rng.uniform(-0.3, 0.3)
-        points = _wavy_stroke(rng, x_start, y_pos, length, angle, wave=5, num_points=18)
-        color = rng.choice(palette["accent"])
+        points = _wavy_stroke(rng, x_start, y_pos, length, angle, wave=5, num_points=20)
+        color = rng.choice(palette["accent"] + palette["warm"])
         actions.append(DrawStrokeAction(
-            reason_label="Adding light catches" if i < 10 else "Glazing warm highlights",
-            color=color, size=rng.uniform(2, 8), opacity=rng.uniform(0.08, 0.25),
+            reason_label="Adding light catches" if i < 15 else "Glazing warm highlights",
+            color=color, size=rng.uniform(2, 10), opacity=rng.uniform(0.06, 0.22),
             points=points,
         ))
 
-    # Soft glow circles for atmosphere
-    for _ in range(8):
+    # Soft glow for atmosphere
+    for _ in range(5):
         actions.append(FillCircleAction(
             reason_label="Atmospheric glow",
-            color=rng.choice(palette["accent"] + palette["warm"]),
+            color=rng.choice(palette["accent"]),
             x=rng.uniform(width * 0.2, width * 0.8),
-            y=rng.uniform(height * 0.1, height * 0.5),
-            r=rng.uniform(30, 80),
-            opacity=rng.uniform(0.05, 0.12),
+            y=rng.uniform(height * 0.1, height * 0.45),
+            r=rng.uniform(40, 100),
+            opacity=rng.uniform(0.05, 0.1),
         ))
 
     # === PHASE 6: Details and texture ===
-    for i in range(30):
+    for i in range(45):
         x_start = rng.uniform(0, width)
-        y_pos = rng.uniform(height * 0.3, height)
-        length = rng.uniform(15, 60)
+        y_pos = rng.uniform(height * 0.25, height)
+        length = rng.uniform(12, 65)
         angle = rng.uniform(0, 2 * pi)
-        points = _wavy_stroke(rng, x_start, y_pos, length, angle, wave=3, num_points=15)
-        color = rng.choice(palette["detail"] + palette["warm"])
+        points = _wavy_stroke(rng, x_start, y_pos, length, angle, wave=3, num_points=16)
+        color = rng.choice(palette["detail"] + palette["warm"] + palette["ground"][:1])
         actions.append(DrawStrokeAction(
-            reason_label="Refining edges" if i < 15 else "Adding texture detail",
-            color=color, size=rng.uniform(1.5, 5), opacity=rng.uniform(0.4, 0.8),
+            reason_label="Refining edges" if i < 20 else "Adding texture detail",
+            color=color, size=rng.uniform(1.5, 5), opacity=rng.uniform(0.35, 0.8),
             points=points,
         ))
 
     # Final accent strokes
-    for _ in range(15):
+    for _ in range(20):
         x_start = rng.uniform(0, width)
         y_pos = rng.uniform(0, height)
-        length = rng.uniform(20, 80)
+        length = rng.uniform(15, 90)
         angle = rng.uniform(-0.5, 0.5)
-        points = _wavy_stroke(rng, x_start, y_pos, length, angle, wave=4, num_points=12)
+        points = _wavy_stroke(rng, x_start, y_pos, length, angle, wave=4, num_points=14)
         color = rng.choice(palette["accent"] + palette["warm"])
         actions.append(DrawStrokeAction(
             reason_label="Final accent touches",
-            color=color, size=rng.uniform(1, 3), opacity=rng.uniform(0.5, 0.9),
+            color=color, size=rng.uniform(1, 3), opacity=rng.uniform(0.4, 0.9),
             points=points,
         ))
 
