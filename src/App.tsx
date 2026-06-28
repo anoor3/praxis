@@ -1,40 +1,49 @@
-import { useMemo, useState } from 'react';
+import { useState } from 'react';
 import { Studio } from './Studio';
+
+const STYLE_PRESETS = [
+  { value: 'dreamy_oil', label: 'Dreamy Oil' },
+  { value: 'watercolor', label: 'Watercolor' },
+  { value: 'impressionist', label: 'Impressionist' },
+] as const;
 
 export function App() {
   const [prompt, setPrompt] = useState('Paint a beautiful sunset mountain lake with pine trees');
-  const [stylePreset, setStylePreset] = useState<'dreamy_oil'>('dreamy_oil');
+  const [stylePreset, setStylePreset] = useState('dreamy_oil');
   const [runId, setRunId] = useState(0);
-
-  const title = useMemo(() => 'Praxis Studio · Give AI Hands', []);
 
   return (
     <div className="page">
       <header className="hero">
-        <h1>{title}</h1>
-        <p>Type a prompt and watch Praxis plan, inspect, critique, and paint from a blank canvas.</p>
-        <p>
-          A live creative agent prototype: type a prompt and watch Praxis plan, move, and paint stroke by
-          stroke.
-        </p>
+        <h1>Praxis</h1>
+        <p className="tagline">Watch AI think, choose colors, and paint — stroke by stroke.</p>
       </header>
-      <section className="controls">
-        <label>
-          Style
-          <select value={stylePreset} onChange={(e) => setStylePreset(e.target.value as 'dreamy_oil')}>
-            <option value="dreamy_oil">Dreamy oil painting</option>
-          </select>
-        </label>
+
+      <section className="prompt-bar">
         <textarea
           value={prompt}
-          onChange={(event) => setPrompt(event.target.value)}
-          rows={3}
-          placeholder="Describe the art you want Praxis to paint..."
+          onChange={(e) => setPrompt(e.target.value)}
+          rows={2}
+          placeholder="Describe what you want painted..."
         />
-        <div className="buttons">
-          <button onClick={() => setRunId((value) => value + 1)}>Start Painting</button>
+        <div className="prompt-actions">
+          <div className="style-chips">
+            {STYLE_PRESETS.map((s) => (
+              <button
+                key={s.value}
+                className={`chip ${stylePreset === s.value ? 'active' : ''}`}
+                onClick={() => setStylePreset(s.value)}
+              >
+                {s.label}
+              </button>
+            ))}
+          </div>
+          <button className="btn-paint" onClick={() => setRunId((v) => v + 1)}>
+            ▶ Paint
+          </button>
         </div>
       </section>
+
       <Studio prompt={prompt} runId={runId} stylePreset={stylePreset} />
     </div>
   );
