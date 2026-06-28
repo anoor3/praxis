@@ -115,6 +115,9 @@ export function Studio({
   const [feed, setFeed] = useState<string[]>(['Ready. Press “Start Painting”.']);
   const [policyStatus, setPolicyStatus] = useState<string>('');
   const [sessionStatus, setSessionStatus] = useState<'idle' | 'running' | 'paused'>('idle');
+  const [currentPhase, setCurrentPhase] = useState<string>('');
+  const [palette, setPalette] = useState<string[]>([]);
+  const [currentAction, setCurrentAction] = useState<string>('');
   const [instruction, setInstruction] = useState('add golden fog');
 
   useEffect(() => {
@@ -281,6 +284,9 @@ export function Studio({
     setFeed(['Connecting to Praxis AI service...']);
     setPolicyStatus('');
     setSessionStatus('running');
+    setCurrentPhase('');
+    setPalette([]);
+    setCurrentAction('');
     ctx.clearRect(0, 0, 900, 540);
     queueRef.current = [];
     currentStrokeRef.current = null;
@@ -308,6 +314,7 @@ export function Studio({
       }
 
       if (msg.type === 'phase_changed') {
+        setCurrentPhase(msg.data.label);
         setFeed((prev) => [...prev, `Phase: ${msg.data.label}`]);
         return;
       }
@@ -324,7 +331,16 @@ export function Studio({
         const actions = msg.data.actions as Action[];
         actions.forEach((action) => {
           queueRef.current.push(action);
+          setCurrentAction(action.reason_label);
           setFeed((prev) => [...prev, action.reason_label]);
+          // Collect unique colors for the palette display
+          const color = 'color' in action ? action.color : null;
+          if (color) {
+            setPalette((prev) => {
+              if (prev.includes(color) || prev.length >= 12) return prev;
+              return [...prev, color];
+            });
+          }
         });
         return;
       }
@@ -374,6 +390,31 @@ export function Studio({
 
   return (
     <section className="studio-wrap">
+      {sessionStatus !== 'idle' && (
+        <div className="thinking-panel">
+          <div className="thinking-phase">
+            <span className="thinking-label">Phase</span>
+            <span className="thinking-value">{currentPhase || 'initializing...'}</span>
+          </div>
+          {palette.length > 0 && (
+            <div className="thinking-palette">
+              <span className="thinking-label">Palette</span>
+              <div className="palette-swatches">
+                {palette.map((c) => (
+                  <span key={c} className="swatch" style={{ backgroundColor: c }} title={c} />
+                ))}
+              </div>
+            </div>
+          )}
+          {currentAction && (
+            <div className="thinking-action">
+              <span className="thinking-label">Thinking</span>
+              <span className="thinking-value">{currentAction}</span>
+            </div>
+          )}
+        </div>
+      )}
+
       <section className="studio">
         <div className="canvas-stack">
           <canvas ref={canvasRef} className="canvas" />
