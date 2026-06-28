@@ -1,7 +1,7 @@
 import json
 import os
 import urllib.request
-from typing import Any
+from typing import Any, Optional
 
 from schemas import Action, DrawStrokeAction, FillRectAction, FillCircleAction, GradientRectAction
 
@@ -10,17 +10,20 @@ class OpenAIError(RuntimeError):
     pass
 
 
-def _coerce_action(obj: dict[str, Any]) -> Action:
+def _coerce_action(obj: dict[str, Any]) -> Optional[Action]:
     action_type = obj.get("action_type")
-    if action_type == "draw_stroke":
-        return DrawStrokeAction.model_validate(obj)
-    if action_type == "fill_rect":
-        return FillRectAction.model_validate(obj)
-    if action_type == "fill_circle":
-        return FillCircleAction.model_validate(obj)
-    if action_type == "gradient_rect":
-        return GradientRectAction.model_validate(obj)
-    raise OpenAIError(f"Unknown action_type: {action_type}")
+    try:
+        if action_type == "draw_stroke":
+            return DrawStrokeAction.model_validate(obj)
+        if action_type == "fill_rect":
+            return FillRectAction.model_validate(obj)
+        if action_type == "fill_circle":
+            return FillCircleAction.model_validate(obj)
+        if action_type == "gradient_rect":
+            return GradientRectAction.model_validate(obj)
+    except Exception:
+        return None
+    return None
 
 
 def _style_block(style_preset: str) -> str:
@@ -86,7 +89,9 @@ def _request_actions(
     actions: list[Action] = []
     for raw in raw_actions:
         if isinstance(raw, dict):
-            actions.append(_coerce_action(raw))
+            a = _coerce_action(raw)
+            if a is not None:
+                actions.append(a)
     return actions
 
 
