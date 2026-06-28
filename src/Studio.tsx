@@ -122,6 +122,8 @@ export function Studio({ prompt, runId, stylePreset }: { prompt: string; runId: 
   const queueRef = useRef<Action[]>([]);
   const rafRef = useRef<number | null>(null);
   const animRef = useRef<Anim>({ s: 'idle' });
+  const stoppedRef = useRef(false);
+  const pausedRef = useRef(false);
   const lastColorRef = useRef('');
   const lastPosRef = useRef<[number,number]>([450, 270]);
 
@@ -172,6 +174,10 @@ export function Studio({ prompt, runId, stylePreset }: { prompt: string; runId: 
     const cctx = cursorRef.current?.getContext('2d') ?? null;
 
     const tick = () => {
+      if (stoppedRef.current || pausedRef.current) {
+        rafRef.current = requestAnimationFrame(tick);
+        return;
+      }
       const a = animRef.current;
 
       if (a.s === 'paint') {
@@ -264,6 +270,7 @@ export function Studio({ prompt, runId, stylePreset }: { prompt: string; runId: 
     setSessionStatus('running'); setCurrentPhase(''); setPalette([]); setCurrentAction(''); setActionCount(0); setTotalActions(0);
     ctx.clearRect(0, 0, 900, 540);
     queueRef.current = []; animRef.current = { s: 'idle' };
+    stoppedRef.current = false;
     lastColorRef.current = ''; lastPosRef.current = [450, 270];
     paletteColors.length = 0;
 
@@ -344,9 +351,9 @@ export function Studio({ prompt, runId, stylePreset }: { prompt: string; runId: 
         </aside>
       </section>
       <div className="runtime-controls">
-        <button onClick={() => { sendControl('pause_session'); setSessionStatus('paused'); }} disabled={sessionStatus !== 'running'}>Pause</button>
-        <button onClick={() => { sendControl('resume_session'); setSessionStatus('running'); }} disabled={sessionStatus !== 'paused'}>Resume</button>
-        <button onClick={() => { sendControl('stop_session'); setSessionStatus('idle'); }}>Stop</button>
+        <button onClick={() => { sendControl('pause_session'); setSessionStatus('paused'); pausedRef.current = true; }} disabled={sessionStatus !== 'running'}>Pause</button>
+        <button onClick={() => { sendControl('resume_session'); setSessionStatus('running'); pausedRef.current = false; }} disabled={sessionStatus !== 'paused'}>Resume</button>
+        <button onClick={() => { sendControl('stop_session'); setSessionStatus('idle'); queueRef.current = []; animRef.current = { s: 'idle' }; stoppedRef.current = true; }}>Stop</button>
         <input value={instruction} onChange={e => setInstruction(e.target.value)} placeholder="Redirect the AI..." />
         <button onClick={() => sendControl('interrupt_instruction', { instruction })}>Redirect</button>
       </div>
