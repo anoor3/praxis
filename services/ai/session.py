@@ -73,6 +73,16 @@ class SessionRunner:
         delay_s = max(0.0, delay_ms / 1000.0)
         actions_per_phase = max(1, len(actions) // max(1, len(plan.phases)))
 
+        # Variable speed: slow for early composition, faster for details
+        phase_speed = {
+            "composition": 2.0,
+            "silhouette": 1.5,
+            "color_block": 1.2,
+            "lighting": 1.0,
+            "details": 0.6,
+            "finish": 0.4,
+        }
+
         phase_index = 0
         memory.update_phase(plan.phases[phase_index])
         await self._send(session_id, "phase_changed", {"label": plan.phases[phase_index]})
@@ -94,7 +104,11 @@ class SessionRunner:
             await self._send(
                 session_id,
                 "action_batch",
-                {"start_index": index, "actions": [action.model_dump()]},
+                {
+                    "start_index": index,
+                    "actions": [action.model_dump()],
+                    "speed": phase_speed.get(plan.phases[phase_index], 1.0),
+                },
             )
             memory.mark_action()
 
@@ -107,7 +121,7 @@ class SessionRunner:
                 await self._send(session_id, "inspection_result", inspection)
                 await self._send(session_id, "critique_result", critique)
 
-            await asyncio.sleep(delay_s)
+            await asyncio.sleep(delay_s * phase_speed.get(plan.phases[phase_index], 1.0))
 
         if not self.flags.stopped:
             set_session_status(session_id, "finished")

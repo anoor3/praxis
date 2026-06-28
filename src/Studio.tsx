@@ -83,6 +83,7 @@ export function Studio({ prompt, runId, stylePreset }: { prompt: string; runId: 
   const rafRef = useRef<number | null>(null);
   const lastActionAtRef = useRef<number>(0);
   const currentStrokeRef = useRef<{ action: Extract<Action, { action_type: 'draw_stroke' }>; points: [number, number][]; index: number } | null>(null);
+  const speedRef = useRef(1.0);
 
   const [feedItems, setFeedItems] = useState<FeedItem[]>([{ text: 'Ready. Press "▶ Paint".', type: 'system' }]);
   const [sessionStatus, setSessionStatus] = useState<'idle' | 'running' | 'paused'>('idle');
@@ -197,7 +198,7 @@ export function Studio({ prompt, runId, stylePreset }: { prompt: string; runId: 
       }
 
       // Consume next action from queue
-      if (!currentStrokeRef.current && now - lastActionAtRef.current >= ACTION_COOLDOWN_MS) {
+      if (!currentStrokeRef.current && now - lastActionAtRef.current >= ACTION_COOLDOWN_MS * speedRef.current) {
         const next = queueRef.current.shift();
         if (next) {
           lastActionAtRef.current = now;
@@ -256,6 +257,7 @@ export function Studio({ prompt, runId, stylePreset }: { prompt: string; runId: 
         setFeedItems((p) => [...p, { text: `Engine: ${msg.data.mode}`, type: 'system' }]);
       } else if (msg.type === 'action_batch') {
         const actions = msg.data.actions as Action[];
+        if (msg.data.speed) speedRef.current = msg.data.speed;
         setTotalActions((t) => t + actions.length);
         actions.forEach((action) => {
           queueRef.current.push(action);
