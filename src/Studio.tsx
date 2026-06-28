@@ -186,23 +186,56 @@ export function Studio({
 
           cctx.clearRect(0, 0, 900, 540);
 
-          // Brush cursor: a small bristle dot + angled handle.
           cctx.save();
           cctx.translate(cx, cy);
           cctx.rotate(angle);
-          cctx.globalAlpha = 0.9;
 
-          cctx.strokeStyle = 'rgba(255,255,255,0.25)';
-          cctx.lineWidth = 2;
+          const brushRadius = Math.max(3, action.size / 2);
+
+          // Wooden handle
+          cctx.fillStyle = '#8B6914';
           cctx.beginPath();
-          cctx.moveTo(-14, -10);
-          cctx.lineTo(-2, -2);
+          cctx.roundRect(-brushRadius * 3.5, -2.5, brushRadius * 2.5, 5, 2);
+          cctx.fill();
+          cctx.strokeStyle = '#6B4F10';
+          cctx.lineWidth = 0.5;
           cctx.stroke();
 
+          // Metal ferrule
+          cctx.fillStyle = '#C0C0C0';
+          cctx.fillRect(-brushRadius * 1.0, -3, brushRadius * 0.6, 6);
+          cctx.strokeStyle = '#888';
+          cctx.lineWidth = 0.5;
+          cctx.strokeRect(-brushRadius * 1.0, -3, brushRadius * 0.6, 6);
+
+          // Bristles (fan shape with paint color)
+          const bristleCount = Math.max(5, Math.round(brushRadius * 1.5));
+          for (let b = 0; b < bristleCount; b++) {
+            const spread = ((b / (bristleCount - 1)) - 0.5) * brushRadius * 1.4;
+            const length = brushRadius * (0.8 + Math.random() * 0.4);
+            cctx.strokeStyle = action.color;
+            cctx.globalAlpha = 0.6 + Math.random() * 0.4;
+            cctx.lineWidth = 1;
+            cctx.beginPath();
+            cctx.moveTo(-brushRadius * 0.4, spread * 0.3);
+            cctx.quadraticCurveTo(length * 0.5, spread * 0.7, length, spread);
+            cctx.stroke();
+          }
+
+          // Paint blob at tip
+          cctx.globalAlpha = 0.85;
           cctx.fillStyle = action.color;
           cctx.beginPath();
-          cctx.arc(0, 0, Math.max(2, action.size / 2), 0, Math.PI * 2);
+          cctx.ellipse(brushRadius * 0.3, 0, brushRadius * 0.7, brushRadius * 0.5, 0, 0, Math.PI * 2);
           cctx.fill();
+
+          // Subtle outer glow for visibility
+          cctx.globalAlpha = 0.15;
+          cctx.strokeStyle = '#fff';
+          cctx.lineWidth = 1;
+          cctx.beginPath();
+          cctx.arc(0, 0, brushRadius + 4, 0, Math.PI * 2);
+          cctx.stroke();
 
           cctx.restore();
         }
